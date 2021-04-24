@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 import java.util.Currency;
+import java.util.List;
 import java.util.Locale;
 
 @ExtendWith({MockitoExtension.class})
@@ -118,8 +119,8 @@ class ATMachineTest {
 
         when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
         
-        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_100)).thenReturn(2);
-        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_20)).thenReturn(2);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_100)).thenReturn(1);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_20)).thenReturn(1);
         
         Money invalidMoneyAmount = new Money(123, SAMPLE_PLN_CURRENCY);
         
@@ -150,8 +151,35 @@ class ATMachineTest {
         // then
         assertEquals(withdrawal.getBanknotes(), Collections.emptyList());
     }
-//    
-//    @Test
-//    public void shouldWithdrawExpectedAmountOfMoney
+
+    @Test
+    public void shouldWithdrawExpectedAmountOfMoney() throws ATMOperationException, AuthorizationException, AccountException {
+
+        // given
+        ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
+        when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
+        atm.setDeposit(moneyDepositMock);
+
+        when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
+        doNothing().when(bankMock).charge(any(), any());
+        
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_500)).thenReturn(1);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_200)).thenReturn(2);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_100)).thenReturn(0);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_50)).thenReturn(3);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_20)).thenReturn(1);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_10)).thenReturn(1);
+
+        Money money = new Money(1080, SAMPLE_PLN_CURRENCY);
+        
+        List<Banknote> expectedBanknotes = List.of(Banknote.PL_500, Banknote.PL_200, Banknote.PL_200,
+                Banknote.PL_50, Banknote.PL_50, Banknote.PL_50, Banknote.PL_20, Banknote.PL_10);
+        
+        // when
+        Withdrawal withdrawal = atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, money);
+
+        // then
+        assertEquals(withdrawal.getBanknotes(), expectedBanknotes);
+    }
 
 }
