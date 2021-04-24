@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Collections;
 import java.util.Currency;
 import java.util.Locale;
 
@@ -108,7 +109,7 @@ class ATMachineTest {
     }
     
     @Test
-    public void shouldThrowExceptionWhenMoneyAmountIsInvalid() throws AuthorizationException {
+    public void shouldThrowExceptionWhenMoneyAmountIsNotWithdrawable() throws AuthorizationException {
 
         // given
         ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
@@ -116,6 +117,9 @@ class ATMachineTest {
         atm.setDeposit(moneyDepositMock);
 
         when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
+        
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_100)).thenReturn(2);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_20)).thenReturn(2);
         
         Money invalidMoneyAmount = new Money(123, SAMPLE_PLN_CURRENCY);
         
@@ -129,5 +133,25 @@ class ATMachineTest {
             assertEquals(exception.getErrorCode(), ErrorCode.WRONG_AMOUNT);
         }
     }
+    
+    @Test
+    public void shouldReturnEmptyListWhenMoneyAmountIsZero() throws AuthorizationException, AccountException, ATMOperationException {
+        // given
+        ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
+        when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
+        atm.setDeposit(moneyDepositMock);
+
+        when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
+        doNothing().when(bankMock).charge(any(), any());
+
+        // when
+        Withdrawal withdrawal = atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, Money.ZERO);
+
+        // then
+        assertEquals(withdrawal.getBanknotes(), Collections.emptyList());
+    }
+//    
+//    @Test
+//    public void shouldWithdrawExpectedAmountOfMoney
 
 }
