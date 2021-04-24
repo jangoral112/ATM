@@ -32,7 +32,7 @@ class ATMachineTest {
     @Mock
     private MoneyDeposit moneyDepositMock;
 
-    private static final int SAMPLE_DENOMINATION = 960;
+    private static final int SAMPLE_DENOMINATION = 160;
     
     private static final Currency SAMPLE_PLN_CURRENCY =  Currency.getInstance("PLN");
     
@@ -180,6 +180,27 @@ class ATMachineTest {
 
         // then
         assertEquals(withdrawal.getBanknotes(), expectedBanknotes);
+    }
+    
+    @Test
+    public void shouldInvokeBankChargeWithGivenTokenAndAmount() throws AuthorizationException, AccountException, ATMOperationException {
+        // given
+        ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
+        when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
+        atm.setDeposit(moneyDepositMock);
+        
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_100)).thenReturn(1);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_50)).thenReturn(1);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_10)).thenReturn(1);
+
+        when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
+        doNothing().when(bankMock).charge(SAMPLE_AUTH_TOKEN,SAMPLE_MONEY_IN_PLN);
+
+        // when
+        atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, SAMPLE_MONEY_IN_PLN);
+
+        // then
+        verify(bankMock).charge(SAMPLE_AUTH_TOKEN,SAMPLE_MONEY_IN_PLN);
     }
 
 }
