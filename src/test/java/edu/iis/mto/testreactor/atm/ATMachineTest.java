@@ -25,79 +25,80 @@ import java.util.Locale;
 
 @ExtendWith({MockitoExtension.class})
 class ATMachineTest {
-    
+
     @Mock
     private Bank bankMock;
-    
+
     @Mock
     private MoneyDeposit moneyDepositMock;
 
     private static final int SAMPLE_DENOMINATION = 160;
-    
-    private static final Currency SAMPLE_PLN_CURRENCY =  Currency.getInstance("PLN");
-    
+
+    private static final Currency SAMPLE_PLN_CURRENCY = Currency.getInstance("PLN");
+
     private static final Money SAMPLE_MONEY_IN_PLN = new Money(SAMPLE_DENOMINATION, SAMPLE_PLN_CURRENCY);
-    
+
     private static final Currency SAMPLE_US_CURRENCY = Currency.getInstance(Locale.US);
-    
+
     private static final Card SAMPLE_CARD = Card.create("1111222233334444");
-    
+
     private static final PinCode SAMPLE_PIN_CODE = PinCode.createPIN(1, 2, 3, 4);
-    
+
     private static final AuthorizationToken SAMPLE_AUTH_TOKEN = AuthorizationToken.create("SAMPLE AUTH TOKEN");
-    
+
     @BeforeEach
     void setUp() throws Exception {}
-    
+
     @Test
     public void shouldThrowATMOperationExceptionWhenAmountIsInvalid() {
-        
+
         // given
-        ATMachine atm = new ATMachine(bankMock,  SAMPLE_PLN_CURRENCY);
+        ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
         when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
         atm.setDeposit(moneyDepositMock);
-        
+
         Money moneyInUsCurrency = new Money(SAMPLE_DENOMINATION, SAMPLE_US_CURRENCY);
-        
+
         // when
         try {
             atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, moneyInUsCurrency);
 
             // then
             fail("Should throw ATMOperationException");
-        } catch (ATMOperationException exception) { 
+        } catch (ATMOperationException exception) {
             assertEquals(exception.getErrorCode(), ErrorCode.WRONG_CURRENCY);
         }
     }
-    
+
     @Test
     public void shouldInvokeBankAuthorizationWhenWithdrawing() throws AuthorizationException, ATMOperationException, AccountException {
-        
+
         // given
         ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
         when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
         atm.setDeposit(moneyDepositMock);
 
         when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
-        doNothing().when(bankMock).charge(any(), any());
-        
+        doNothing().when(bankMock)
+                   .charge(any(), any());
+
         // when
         atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, Money.ZERO);
 
         // then
         verify(bankMock).autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber());
     }
-    
+
     @Test
     public void shouldThrowATMOperationExceptionWhenAuthorizationFailed() throws AuthorizationException {
-        
+
         // given
         ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
         when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
         atm.setDeposit(moneyDepositMock);
-        
+
         when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenThrow(new AuthorizationException());
-        
+
         // when
         try {
             atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, Money.ZERO);
@@ -108,7 +109,7 @@ class ATMachineTest {
             assertEquals(exception.getErrorCode(), ErrorCode.AHTHORIZATION);
         }
     }
-    
+
     @Test
     public void shouldThrowExceptionWhenMoneyAmountIsNotWithdrawable() throws AuthorizationException {
 
@@ -118,23 +119,23 @@ class ATMachineTest {
         atm.setDeposit(moneyDepositMock);
 
         when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
-        
+
         when(moneyDepositMock.getAvailableCountOf(Banknote.PL_100)).thenReturn(1);
         when(moneyDepositMock.getAvailableCountOf(Banknote.PL_20)).thenReturn(1);
-        
+
         Money invalidMoneyAmount = new Money(123, SAMPLE_PLN_CURRENCY);
-        
+
         // when
         try {
             atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, invalidMoneyAmount);
-            
+
             // then
             fail("Should throw ATMOperationException");
         } catch (ATMOperationException exception) {
             assertEquals(exception.getErrorCode(), ErrorCode.WRONG_AMOUNT);
         }
     }
-    
+
     @Test
     public void shouldReturnEmptyListWhenMoneyAmountIsZero() throws AuthorizationException, AccountException, ATMOperationException {
         // given
@@ -143,7 +144,8 @@ class ATMachineTest {
         atm.setDeposit(moneyDepositMock);
 
         when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
-        doNothing().when(bankMock).charge(any(), any());
+        doNothing().when(bankMock)
+                   .charge(any(), any());
 
         // when
         Withdrawal withdrawal = atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, Money.ZERO);
@@ -161,8 +163,9 @@ class ATMachineTest {
         atm.setDeposit(moneyDepositMock);
 
         when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
-        doNothing().when(bankMock).charge(any(), any());
-        
+        doNothing().when(bankMock)
+                   .charge(any(), any());
+
         when(moneyDepositMock.getAvailableCountOf(Banknote.PL_500)).thenReturn(1);
         when(moneyDepositMock.getAvailableCountOf(Banknote.PL_200)).thenReturn(2);
         when(moneyDepositMock.getAvailableCountOf(Banknote.PL_100)).thenReturn(0);
@@ -171,36 +174,76 @@ class ATMachineTest {
         when(moneyDepositMock.getAvailableCountOf(Banknote.PL_10)).thenReturn(1);
 
         Money money = new Money(1080, SAMPLE_PLN_CURRENCY);
-        
-        List<Banknote> expectedBanknotes = List.of(Banknote.PL_500, Banknote.PL_200, Banknote.PL_200,
-                Banknote.PL_50, Banknote.PL_50, Banknote.PL_50, Banknote.PL_20, Banknote.PL_10);
-        
+
+        List<Banknote> expectedBanknotes = List.of(Banknote.PL_500, Banknote.PL_200, Banknote.PL_200, Banknote.PL_50, Banknote.PL_50,
+                Banknote.PL_50, Banknote.PL_20, Banknote.PL_10);
+
         // when
         Withdrawal withdrawal = atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, money);
 
         // then
         assertEquals(withdrawal.getBanknotes(), expectedBanknotes);
     }
-    
+
     @Test
     public void shouldInvokeBankChargeWithGivenTokenAndAmount() throws AuthorizationException, AccountException, ATMOperationException {
         // given
         ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
         when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
         atm.setDeposit(moneyDepositMock);
-        
+
         when(moneyDepositMock.getAvailableCountOf(Banknote.PL_100)).thenReturn(1);
         when(moneyDepositMock.getAvailableCountOf(Banknote.PL_50)).thenReturn(1);
         when(moneyDepositMock.getAvailableCountOf(Banknote.PL_10)).thenReturn(1);
 
         when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
-        doNothing().when(bankMock).charge(SAMPLE_AUTH_TOKEN,SAMPLE_MONEY_IN_PLN);
+        doNothing().when(bankMock)
+                   .charge(SAMPLE_AUTH_TOKEN, SAMPLE_MONEY_IN_PLN);
 
         // when
         atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, SAMPLE_MONEY_IN_PLN);
 
         // then
-        verify(bankMock).charge(SAMPLE_AUTH_TOKEN,SAMPLE_MONEY_IN_PLN);
+        verify(bankMock).charge(SAMPLE_AUTH_TOKEN, SAMPLE_MONEY_IN_PLN);
+    }
+
+    @Test
+    public void shouldReleaseGivenBanknotePacks() throws AuthorizationException, AccountException, ATMOperationException {
+
+        // given
+        ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
+        when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
+        atm.setDeposit(moneyDepositMock);
+
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_200)).thenReturn(0);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_100)).thenReturn(2);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_50)).thenReturn(0);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_20)).thenReturn(2);
+        when(moneyDepositMock.getAvailableCountOf(Banknote.PL_10)).thenReturn(1);
+
+        when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
+
+        Money money = new Money(250, SAMPLE_PLN_CURRENCY);
+
+        doNothing().when(bankMock)
+                   .charge(SAMPLE_AUTH_TOKEN, money);
+
+        BanknotesPack expectedPL_200BanknotePack = BanknotesPack.create(0, Banknote.PL_200);
+        BanknotesPack expectedPL_100BanknotePack = BanknotesPack.create(2, Banknote.PL_100);
+        BanknotesPack expectedPL_50BanknotePack = BanknotesPack.create(0, Banknote.PL_50);
+        BanknotesPack expectedPL_20BanknotePack = BanknotesPack.create(2, Banknote.PL_20);
+        BanknotesPack expectedPL_10BanknotePack = BanknotesPack.create(1, Banknote.PL_10);
+
+        // when
+        atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, money);
+
+        // then
+        verify(moneyDepositMock, times(5)).release(any());
+        verify(moneyDepositMock).release(expectedPL_200BanknotePack);
+        verify(moneyDepositMock).release(expectedPL_100BanknotePack);
+        verify(moneyDepositMock).release(expectedPL_50BanknotePack);
+        verify(moneyDepositMock).release(expectedPL_20BanknotePack);
+        verify(moneyDepositMock).release(expectedPL_10BanknotePack);
     }
 
 }
