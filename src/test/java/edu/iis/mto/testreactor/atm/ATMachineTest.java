@@ -106,5 +106,28 @@ class ATMachineTest {
             assertEquals(exception.getErrorCode(), ErrorCode.AHTHORIZATION);
         }
     }
+    
+    @Test
+    public void shouldThrowExceptionWhenMoneyAmountIsInvalid() throws AuthorizationException {
+
+        // given
+        ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
+        when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
+        atm.setDeposit(moneyDepositMock);
+
+        when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
+        
+        Money invalidMoneyAmount = new Money(123, SAMPLE_PLN_CURRENCY);
+        
+        // when
+        try {
+            atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, invalidMoneyAmount);
+            
+            // then
+            fail("Should throw ATMOperationException");
+        } catch (ATMOperationException exception) {
+            assertEquals(exception.getErrorCode(), ErrorCode.WRONG_AMOUNT);
+        }
+    }
 
 }
