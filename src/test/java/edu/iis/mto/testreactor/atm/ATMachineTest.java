@@ -70,6 +70,7 @@ class ATMachineTest {
     
     @Test
     public void shouldInvokeBankAuthorizationWhenWithdrawing() throws AuthorizationException, ATMOperationException, AccountException {
+        
         // given
         ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
         when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
@@ -77,14 +78,33 @@ class ATMachineTest {
 
         when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenReturn(SAMPLE_AUTH_TOKEN);
         doNothing().when(bankMock).charge(any(), any());
-
-        Money zeroMoney = Money.ZERO;
         
         // when
-        atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, zeroMoney);
+        atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, Money.ZERO);
 
         // then
         verify(bankMock).autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber());
+    }
+    
+    @Test
+    public void shouldThrowATMOperationExceptionWhenAuthorizationFailed() throws AuthorizationException {
+        
+        // given
+        ATMachine atm = new ATMachine(bankMock, SAMPLE_PLN_CURRENCY);
+        when(moneyDepositMock.getCurrency()).thenReturn(SAMPLE_PLN_CURRENCY);
+        atm.setDeposit(moneyDepositMock);
+        
+        when(bankMock.autorize(SAMPLE_PIN_CODE.getPIN(), SAMPLE_CARD.getNumber())).thenThrow(new AuthorizationException());
+        
+        // when
+        try {
+            atm.withdraw(SAMPLE_PIN_CODE, SAMPLE_CARD, Money.ZERO);
+
+            // then
+            fail("Should throw ATMOperationException");
+        } catch (ATMOperationException exception) {
+            assertEquals(exception.getErrorCode(), ErrorCode.AHTHORIZATION);
+        }
     }
 
 }
